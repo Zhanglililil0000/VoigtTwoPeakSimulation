@@ -15,6 +15,20 @@ class VoigtSimulator(QWidget):
     def initUI(self):
         # 创建图形窗口
         self.plot = pg.PlotWidget()
+        
+        # 创建结果显示区域
+        self.info_group = QGroupBox("Peak Analysis")
+        self.info_layout = QHBoxLayout()
+        
+        # 创建两个独立的标签用于显示峰信息
+        self.info_label1 = QLabel()
+        self.info_label1.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+        self.info_label2 = QLabel()
+        self.info_label2.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+        
+        self.info_layout.addWidget(self.info_label1)
+        self.info_layout.addWidget(self.info_label2)
+        self.info_group.setLayout(self.info_layout)
         self.plot.setLabel('left', 'Intensity')
         self.plot.setLabel('bottom', 'Wavenumber (cm-1)')
         
@@ -53,6 +67,7 @@ class VoigtSimulator(QWidget):
         # 布局
         main_layout = QVBoxLayout()
         main_layout.addWidget(range_group)
+        main_layout.addWidget(self.info_group)
         main_layout.addWidget(self.plot)
         main_layout.addLayout(control_layout)
         
@@ -191,24 +206,27 @@ class VoigtSimulator(QWidget):
         
     def update_peak_info(self, peak_info):
         """更新峰信息显示"""
-        if not hasattr(self, 'info_label'):
-            # 创建结果显示区域
-            self.info_group = QGroupBox("Peak Analysis")
-            self.info_layout = QVBoxLayout()
-            self.info_label = QLabel()
-            self.info_label.setWordWrap(True)
-            self.info_layout.addWidget(self.info_label)
-            self.info_group.setLayout(self.info_layout)
-            self.layout().insertWidget(1, self.info_group)
+        if not hasattr(self, 'info_label1'):
+            return
+            
             
         # 更新显示内容
-        text = ""
+        text1 = ""
+        text2 = ""
         for i, info in enumerate(peak_info):
-            text += f"Peak {i+1}:\n"
-            text += f"  Position: {info['position']:.2f} cm-1\n"
-            text += f"  FWHM: {info['fwhm']:.2f} cm-1\n"
-            text += f"  Intensity: {info['intensity']:.4f}\n\n"
-        self.info_label.setText(text)
+            if i == 0:
+                text1 += f"Peak {i+1}:\n"
+                text1 += f"  Position: {info['position']:.2f} cm-1\n"
+                text1 += f"  FWHM: {info['fwhm']:.2f} cm-1\n"
+                text1 += f"  Intensity: {info['intensity']:.4f}\n\n"
+            elif i == 1:
+                text2 += f"Peak {i+1}:\n"
+                text2 += f"  Position: {info['position']:.2f} cm-1\n"
+                text2 += f"  FWHM: {info['fwhm']:.2f} cm-1\n"
+                text2 += f"  Intensity: {info['intensity']:.4f}\n\n"
+        
+        self.info_label1.setText(text1)
+        self.info_label2.setText(text2)
         
     def update_plot(self):
         min_val = self.min_spin.value()
