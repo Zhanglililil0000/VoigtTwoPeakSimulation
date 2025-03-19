@@ -64,9 +64,34 @@ class VoigtSimulator(QWidget):
             layout = self.create_peak_controls(i+1)
             control_layout.addLayout(layout)
         
+        # 非共振项输入
+        nonres_group = QGroupBox("Nonresonance Term")
+        nonres_layout = QHBoxLayout()
+        
+        # 实部
+        real_label = QLabel("Real Part:")
+        self.real_spin = QDoubleSpinBox()
+        self.real_spin.setRange(-100, 100)
+        self.real_spin.setValue(0.1)
+        self.real_spin.setSingleStep(0.01)
+        
+        # 虚部
+        imag_label = QLabel("Imaginary Part:")
+        self.imag_spin = QDoubleSpinBox()
+        self.imag_spin.setRange(-100, 100)
+        self.imag_spin.setValue(0.0)
+        self.imag_spin.setSingleStep(0.01)
+        
+        nonres_layout.addWidget(real_label)
+        nonres_layout.addWidget(self.real_spin)
+        nonres_layout.addWidget(imag_label)
+        nonres_layout.addWidget(self.imag_spin)
+        nonres_group.setLayout(nonres_layout)
+        
         # 布局
         main_layout = QVBoxLayout()
         main_layout.addWidget(range_group)
+        main_layout.addWidget(nonres_group)
         main_layout.addWidget(self.info_group)
         main_layout.addWidget(self.plot)
         main_layout.addLayout(control_layout)
@@ -173,26 +198,23 @@ class VoigtSimulator(QWidget):
             # 计算半高全宽
             half_max = y[peak]/2
             
-            # 找到左右交叉点的索引
-            left_idx = np.where(y[:peak] <= half_max)[0][-1]
-            right_idx = np.where(y[peak:] <= half_max)[0][0] + peak
+            # 找到左交叉点的索引
+            left_cross = np.where(y[:peak] <= half_max)[0]
+            if len(left_cross) == 0:
+                x_left = x[peak] - 10  # 默认10cm-1宽度
+            else:
+                left_idx = left_cross[-1]
+                # 使用线性插值找到精确的左交叉点
+                x_left = x[left_idx] + (half_max - y[left_idx]) * (x[left_idx+1] - x[left_idx]) / (y[left_idx+1] - y[left_idx])
             
-            # 使用更精确的插值方法
-            def find_crossing(x1, x2, y1, y2):
-                """使用线性插值找到精确的交叉点"""
-                return x1 + (half_max - y1) * (x2 - x1) / (y2 - y1)
-            
-            # 计算左交叉点
-            x_left = find_crossing(
-                x[left_idx], x[left_idx+1],
-                y[left_idx], y[left_idx+1]
-            )
-            
-            # 计算右交叉点
-            x_right = find_crossing(
-                x[right_idx-1], x[right_idx],
-                y[right_idx-1], y[right_idx]
-            )
+            # 找到右交叉点的索引
+            right_cross = np.where(y[peak:] <= half_max)[0]
+            if len(right_cross) == 0:
+                x_right = x[peak] + 10  # 默认10cm-1宽度
+            else:
+                right_idx = right_cross[0] + peak
+                # 使用线性插值找到精确的右交叉点
+                x_right = x[right_idx-1] + (half_max - y[right_idx-1]) * (x[right_idx] - x[right_idx-1]) / (y[right_idx] - y[right_idx-1])
             
             fwhm = x_right - x_left
             
@@ -246,11 +268,21 @@ class VoigtSimulator(QWidget):
             else:
                 y += voigt(x, pos, intensity, lw, gw)
         
+        # 加入非共振项
+        nonres = self.real_spin.value() + 1j * self.imag_spin.value()
+        y += nonres
+        
         # 对复数结果取模平方
         y = np.abs(y)**2
         
         self.plot.clear()
         self.plot.plot(x, y, pen='k')
+        
+        # 连接非共振项的信号
+        if not hasattr(self, '_nonres_connected'):
+            self.real_spin.valueChanged.connect(self.update_plot)
+            self.imag_spin.valueChanged.connect(self.update_plot)
+            self._nonres_connected = True
         
         # 峰识别和计算
         peak_info = self.analyze_peaks(x, y)
