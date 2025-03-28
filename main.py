@@ -97,7 +97,7 @@ class VoigtSimulator(QWidget):
         main_layout.addLayout(control_layout)
         
         self.setLayout(main_layout)
-        self.setWindowTitle('Voigt Profile Simulator')
+        self.setWindowTitle('Spectra Line Shape Simulator')
         
         # 连接信号
         self.min_spin.valueChanged.connect(self.update_range)
